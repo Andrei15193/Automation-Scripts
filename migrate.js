@@ -84,7 +84,7 @@ function migrate(folder, connectionString) {
         .then(() => migrationsTable.queryAllAsync(query))
         .then(
             executedScripts => updateScripts.reduce(
-                (previousePromise, updateScript) => previousePromise.then(
+                (previousPromise, updateScript) => previousPromise.then(
                     () => {
                         const executedScript = executedScripts.find((executedScript) => executedScript.RowKey._ === updateScript.toLocaleLowerCase());
                         if (executedScript)
