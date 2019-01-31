@@ -1,0 +1,16 @@
+{
+  "name": "js-scripts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "cmd": "node app.js",
+    "command": "node app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Andrei Fangli",
+  "license": "MIT",
+  "dependencies": {
+    "azure-storage": "^2.10.2"
+  }
+}
