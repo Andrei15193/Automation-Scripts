@@ -123,7 +123,9 @@ function migrate(folder, connectionString) {
 
 module.exports = {
     writeHelp: function () {
-        console.log("npm run migrate <folder> <connection_string>");
+        console.log("npm run command migrate <folder> [<connection_string>]");
+        console.log("If a connection_string is not provided then one is looked up in the AZURE_STORAGE_CONNECTION_STRING environment variable.");
+        console.log();
     },
     execute: function (args) {
         migrate.apply(this, args);
