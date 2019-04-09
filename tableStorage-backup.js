@@ -1,165 +1,147 @@
 const { PassThrough } = require('stream');
+const { createGzip } = require('zlib');
 const azure = require('azure-storage');
-const archiver = require('archiver');
 
 module.exports = {
     backupTablesStorageAsync
 };
 
 function backupTablesStorageAsync(connectionString, outputStream) {
-    const tableService = azure.createTableService(connectionString);
+    const _tableService = azure.createTableService(connectionString);
+    const _archive = createGzip({ level: 9 });
+    const _archiveStream = new PassThrough();
+    let separator = '';
 
-    const archive = archiver(
-        'zip',
-        {
-            zlib:
-            {
-                level: 9
-            }
-        }
-    );
-    archive.on(
-        'error',
-        function (error) {
-            throw error;
-        }
-    );
-    archive.pipe(outputStream);
+    _archive.on('error', function (error) {
+        throw error;
+    });
 
-    return writeTablesAsync(archive, tableService)
+    _archiveStream.pipe(_archive).pipe(outputStream);
+
+    _archiveStream.write('[');
+    return _writeTablesAsync()
         .then(
-            function () {
-                archive.finalize();
+            () => {
+                _archiveStream.write(']');
+                _archiveStream.end();
             }
         );
-}
 
-function writeTablesAsync(archive, tableService) {
-    return new Promise(
-        function promiseCallback(resolve, reject, continuationToken) {
-            tableService.listTablesSegmented(
-                continuationToken,
-                function (error, result) {
-                    if (error)
-                        reject(error);
-                    else
-                        result
-                            .entries
-                            .reduce(
-                                function (promise, tableName) {
-                                    return promise.then(
-                                        function () {
-                                            const outputStream = new PassThrough();
-                                            archive.append(outputStream, { name: `${tableName}.json` });
+    function _writeTablesAsync() {
+        return new Promise(
+            function promiseCallback(resolve, reject, continuationToken) {
+                _tableService.listTablesSegmented(
+                    continuationToken,
+                    (error, result) => {
+                        if (error)
+                            reject(error);
+                        else
+                            result
+                                .entries
+                                .reduce(
+                                    (promise, tableName) => promise.then(() => _writeEntitiesAsync(tableName)),
+                                    Promise.resolve()
+                                )
+                                .then(
+                                    () => {
+                                        if (result.continuationToken)
+                                            promiseCallback(resolve, reject, result.continuationToken);
+                                        else
+                                            resolve();
+                                    }
+                                );
+                    }
+                );
+            }
+        );
+    }
 
-                                            return writeEntitiesAsync(outputStream, tableService, tableName)
-                                                .then(function () {
-                                                    outputStream.end();
-                                                });
-                                        }
+    function _writeEntitiesAsync(tableName) {
+        console.log(`Backing up ${tableName} table`);
+
+        const query = new azure.TableQuery();
+        let totalEntities = 0;
+
+        return new Promise(
+            function promiseCallback(resolve, reject, continuationToken) {
+                _tableService.queryEntities(
+                    tableName,
+                    query,
+                    continuationToken,
+                    (error, result) => {
+                        if (error)
+                            reject(error);
+                        else {
+                            totalEntities += result.entries.length;
+                            result.entries.forEach(
+                                entity => {
+                                    _archiveStream.write(separator);
+                                    separator = ',';
+                                    _archiveStream.write(
+                                        JSON.stringify(
+                                            {
+                                                table: tableName,
+                                                entity: _toBackupEntity(entity)
+                                            }
+                                        )
                                     );
-                                },
-                                Promise.resolve()
-                            )
-                            .then(
-                                function () {
-                                    if (result.continuationToken)
-                                        promiseCallback(resolve, reject, result.continuationToken);
-                                    else
-                                        resolve();
                                 }
                             );
-                }
-            );
-        }
-    );
-}
 
-function writeEntitiesAsync(outputStream, tableService, tableName) {
-    console.log(`Backing up ${tableName} table`);
-
-    const query = new azure.TableQuery();
-    let separator = '';
-    let totalEntities = 0;
-
-    outputStream.write('[');
-    return new Promise(
-        function promiseCallback(resolve, reject, continuationToken) {
-            tableService.queryEntities(
-                tableName,
-                query,
-                continuationToken,
-                function (error, result) {
-                    if (error)
-                        reject(error);
-                    else {
-                        totalEntities += result.entries.length;
-                        result.entries.forEach(function (entity) {
-                            outputStream.write(separator);
-                            separator = ',';
-                            outputStream.write(JSON.stringify(toBackupEntity(entity)));
-                        });
-
-                        if (result.continuationToken)
-                            promiseCallback(resolve, reject, result.continuationToken);
-                        else {
-                            outputStream.write(']');
-                            console.log(`Backup complete, ${totalEntities} total entities`);
-                            resolve();
+                            if (result.continuationToken)
+                                promiseCallback(resolve, reject, result.continuationToken);
+                            else {
+                                console.log(`Backup complete, ${totalEntities} total entities`);
+                                resolve();
+                            }
                         }
                     }
-                }
-            )
-        }
-    );
-}
-
-function toBackupEntity(entity) {
-    return Object
-        .getOwnPropertyNames(entity)
-        .filter(
-            function (property) {
-                return property !== '.metadata' && property !== 'Timestamp'
+                )
             }
-        )
-        .reduce(
-            function (result, property) {
-                return Object.assign(
-                    {
-                        [property]: toBackupEntityProperty(entity[property])
-                    },
-                    result
-                );
-            },
-            {}
         );
-}
+    }
 
-function toBackupEntityProperty(entityProperty) {
-    if (entityProperty.$)
-        if (entityProperty.$ === 'Edm.Binary')
+    function _toBackupEntity(entity) {
+        return Object
+            .getOwnPropertyNames(entity)
+            .filter(property => property !== '.metadata' && property !== 'Timestamp')
+            .reduce(
+                (result, property) =>
+                    Object.assign(
+                        {},
+                        result,
+                        { [property]: _toBackupEntityProperty(entity[property]) }
+                    ),
+                {}
+            );
+    }
+
+    function _toBackupEntityProperty(entityProperty) {
+        if (entityProperty.$)
+            if (entityProperty.$ === 'Edm.Binary')
+                return {
+                    type: entityProperty.$,
+                    value: entityProperty._.toString('base64')
+                };
+            else
+                return {
+                    type: entityProperty.$,
+                    value: entityProperty._
+                };
+        else if (typeof (entityProperty._) === 'number')
             return {
-                type: entityProperty.$,
-                value: entityProperty._.toString('base64')
+                type: 'Edm.Int32',
+                value: entityProperty._
+            };
+        else if (typeof (entityProperty._) === 'boolean')
+            return {
+                type: 'Edm.Boolean',
+                value: entityProperty._
             };
         else
             return {
-                type: entityProperty.$,
+                type: 'Edm.String',
                 value: entityProperty._
             };
-    else if (typeof (entityProperty._) === 'number')
-        return {
-            type: 'Edm.Int32',
-            value: entityProperty._
-        };
-    else if (typeof (entityProperty._) === 'boolean')
-        return {
-            type: 'Edm.Boolean',
-            value: entityProperty._
-        };
-    else
-        return {
-            type: 'Edm.String',
-            value: entityProperty._
-        };
+    }
 }

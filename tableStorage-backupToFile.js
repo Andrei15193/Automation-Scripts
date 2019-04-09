@@ -38,10 +38,10 @@ else {
 
 function writeHelp() {
     console.log('Backup Azure Table Storage to Azure Blob Storage');
-    console.log('Usage: node ./tableStorage-backupToFile.js -connectionString <conStr> -filePath <zip file path>');
+    console.log('Usage: node ./tableStorage-backupToFile.js -connectionString <conStr> -filePath <gz file path>');
     console.log('  -connectionString:     the Azure Storage Account connection string');
-    console.log('  -filePath:             the zip file path to backup the tables to');
-    console.log('  -overwrite:            overwrites the output zip file if exists');
+    console.log('  -filePath:             the gz archive file path to backup the tables to');
+    console.log('  -overwrite:            overwrites the output file if exists');
 }
 
 function validateCommandLineOptions(commandLineOptions) {

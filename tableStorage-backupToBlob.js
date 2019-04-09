@@ -12,13 +12,13 @@ else
 
 function writeHelp() {
     console.log('Backup Azure Table Storage to Azure Blob Storage');
-    console.log('Usage: node ./tableStorage-backupToBlob.js -connectionString <conStr> -blobContainer <container name> -blobName <zip name>');
+    console.log('Usage: node ./tableStorage-backupToBlob.js -connectionString <conStr> -blobContainer <container name> -blobName <gz blob name>');
     console.log('  -connectionString:     the Azure Storage Account connection string');
     console.log('  -blobConnectionString: the connection string for the storage account where to store the backup');
     console.log('                         when not specified the -connectionString value is used');
     console.log('  -blobContainer:        the Azure Blob Container to backup to');
-    console.log('  -blobName:             the zip file blob name of the backup');
-    console.log('  -overwrite:            overwrites the resulting zip blob if exists');
+    console.log('  -blobName:             the gz archive blob name to backup to');
+    console.log('  -overwrite:            overwrites the resulting blob if exists');
 }
 
 function validateCommandLineOptions(commandLineOptions) {
