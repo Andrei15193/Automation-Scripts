@@ -1,6 +1,6 @@
 const fs = require('fs');
 const { getCommandLineOptions } = require('./common');
-const { backupTablesStorageAsync } = require('./tableStorage-backup');
+const { backupTableStorageAsync } = require('./tableStorage-backup');
 
 const commandLineOptions = getCommandLineOptions(process.argv.slice(2));
 validateCommandLineOptions(commandLineOptions);
@@ -8,7 +8,7 @@ validateCommandLineOptions(commandLineOptions);
 if (commandLineOptions.named.help)
     writeHelp();
 else {
-    backupTablesStorageAsync(
+    backupTableStorageAsync(
         commandLineOptions.named.connectionString,
         fs.createWriteStream(
             commandLineOptions.named.filePath,

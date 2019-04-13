@@ -1,14 +1,43 @@
 const azure = require('azure-storage');
 const { getCommandLineOptions } = require("./common.js");
-const { backupTablesStorageAsync } = require('./tableStorage-backup');
+const { backupTableStorageAsync } = require('./tableStorage-backup');
 
 const commandLineOptions = getCommandLineOptions(process.argv.slice(2));
 validateCommandLineOptions(commandLineOptions);
 
 if (commandLineOptions.named.help)
     writeHelp();
-else
-    backupTableStorageAsync(commandLineOptions);
+else {
+    const blobService = azure.createBlobService(commandLineOptions.named.blobConnectionString || commandLineOptions.named.connectionString);
+
+    ensureContainerExistsAsync(blobService, commandLineOptions.named.blobContainer)
+        .then(
+            function () {
+                return doesBlobExistAsync(blobService, commandLineOptions.named.blobContainer, commandLineOptions.named.blobName)
+            }
+        )
+        .then(
+            function (blobExists) {
+                if (!commandLineOptions.named.overwrite && blobExists)
+                    throw `Blob ${commandLineOptions.named.blobName} already exists in ${commandLineOptions.named.blobContainer}`;
+            }
+        )
+        .then(
+            function () {
+                return backupTableStorageAsync(
+                    commandLineOptions.named.connectionString,
+                    blobService.createWriteStreamToBlockBlob(commandLineOptions.named.blobContainer, commandLineOptions.named.blobName)
+                )
+                    .catch(
+                        function (error) {
+                            console.error(error);
+                            return deleteBlobAsync(blobService, commandLineOptions.named.blobContainer, commandLineOptions.named.blobName);
+                        }
+                    );
+            }
+        )
+        .catch(console.error);
+}
 
 function writeHelp() {
     console.log('Backup Azure Table Storage to Azure Blob Storage');
@@ -28,38 +57,6 @@ function validateCommandLineOptions(commandLineOptions) {
         throw 'Expected -blobContainer';
     if (!commandLineOptions.named.blobName)
         throw 'Expected -blobName';
-}
-
-function backupTableStorageAsync(commandLineOptions) {
-    const blobService = azure.createBlobService(commandLineOptions.named.blobConnectionString || commandLineOptions.named.connectionString);
-
-    ensureContainerExistsAsync(blobService, commandLineOptions.named.blobContainer)
-        .then(
-            function () {
-                return doesBlobExistAsync(blobService, commandLineOptions.named.blobContainer, commandLineOptions.named.blobName)
-            }
-        )
-        .then(
-            function (blobExists) {
-                if (!commandLineOptions.named.overwrite && blobExists)
-                    throw `Blob ${commandLineOptions.named.blobName} already exists in ${commandLineOptions.named.blobContainer}`;
-            }
-        )
-        .then(
-            function () {
-                return backupTablesStorageAsync(
-                    commandLineOptions.named.connectionString,
-                    blobService.createWriteStreamToBlockBlob(commandLineOptions.named.blobContainer, commandLineOptions.named.blobName)
-                )
-                    .catch(
-                        function (error) {
-                            console.error(error);
-                            return deleteBlobAsync(blobService, commandLineOptions.named.blobContainer, commandLineOptions.named.blobName);
-                        }
-                    );
-            }
-        )
-        .catch(console.error);
 }
 
 function ensureContainerExistsAsync(blobService, containerName) {

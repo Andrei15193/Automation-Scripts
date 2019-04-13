@@ -3,27 +3,29 @@ const { createGzip } = require('zlib');
 const azure = require('azure-storage');
 
 module.exports = {
-    backupTablesStorageAsync
+    backupTableStorageAsync
 };
 
-function backupTablesStorageAsync(connectionString, outputStream) {
+function backupTableStorageAsync(connectionString, outputStream) {
     const _tableService = azure.createTableService(connectionString);
-    const _archive = createGzip({ level: 9 });
-    const _archiveStream = new PassThrough();
+    const _gzip = createGzip({ level: 9 });
+    const _writer = new PassThrough();
     let separator = '';
 
-    _archive.on('error', function (error) {
+    _gzip.on('error', function (error) {
         throw error;
     });
 
-    _archiveStream.pipe(_archive).pipe(outputStream);
+    _writer
+        .pipe(_gzip)
+        .pipe(outputStream);
 
-    _archiveStream.write('[');
+    _writer.write('[');
     return _writeTablesAsync()
         .then(
             () => {
-                _archiveStream.write(']');
-                _archiveStream.end();
+                _writer.write(']');
+                _writer.end();
             }
         );
 
@@ -75,9 +77,9 @@ function backupTablesStorageAsync(connectionString, outputStream) {
                             totalEntities += result.entries.length;
                             result.entries.forEach(
                                 entity => {
-                                    _archiveStream.write(separator);
+                                    _writer.write(separator);
                                     separator = ',';
-                                    _archiveStream.write(
+                                    _writer.write(
                                         JSON.stringify(
                                             {
                                                 table: tableName,
@@ -91,6 +93,17 @@ function backupTablesStorageAsync(connectionString, outputStream) {
                             if (result.continuationToken)
                                 promiseCallback(resolve, reject, result.continuationToken);
                             else {
+                                if (totalEntities === 0) {
+                                    _writer.write(separator);
+                                    separator = ',';
+                                    _writer.write(
+                                        JSON.stringify(
+                                            {
+                                                table: tableName
+                                            }
+                                        )
+                                    );
+                                }
                                 console.log(`Backup complete, ${totalEntities} total entities`);
                                 resolve();
                             }
