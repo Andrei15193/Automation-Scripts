@@ -24,8 +24,8 @@ $executedScripts = @()
 do
 {
     $output = az storage entity query 2>&1 `
-        --table-name $migrationsTableName,
-        --marker "nextpartitionkey='$nextPartitionKey'" "nextrowkey='$nextRowKey'",
+        --table-name $migrationsTableName `
+        --marker "nextpartitionkey='$nextPartitionKey'" "nextrowkey='$nextRowKey'" `
         --query "{ executedScripts: items[?PartitionKey=='$changeSet'].RowKey, nextMarker: nextMarker }"
     if ($LastExitCode -ne 0)
     {
@@ -70,8 +70,8 @@ Get-ChildItem -Path $folder -Filter "*.ps1" |
             }
 
             $output = az storage entity insert 2>&1 `
-                --table-name $migrationsTableName,
-                --if-exists fail,
+                --table-name $migrationsTableName `
+                --if-exists fail `
                 --entity (@{
                     PartitionKey = $changeSet
                     RowKey = $scriptName

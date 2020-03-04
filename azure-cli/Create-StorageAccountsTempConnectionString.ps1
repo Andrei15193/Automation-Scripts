@@ -3,27 +3,27 @@ param(
     [timespan]$expiration = [timespan]::FromHours(1)
 )
 
-(az storage account list,
-    --resource-group $resourceGroupName,
+(az storage account list `
+    --resource-group $resourceGroupName `
     --query "[].{accountName: name, storageEndpoints: primaryEndpoints}" | ConvertFrom-Json) |
 ForEach-Object {
-    $accountKey = az storage account keys list,
-        --account-name $PSItem.accountName,
-        --resource-group $resourceGroupName,
+    $accountKey = az storage account keys list `
+        --account-name $PSItem.accountName `
+        --resource-group $resourceGroupName `
         --query "[0:1].value" | ConvertFrom-Json
 
     $start = [DateTime]::UtcNow
     $expiry = $start.Add($expiration)
     $dateFormat = "yyyy-MM-ddTHH:mmK"
     $sasToken = [Uri]::UnescapeDataString((
-        az storage account generate-sas,
-            --start ($start.ToString($dateFormat)),
-            --expiry ($expiry.ToString($dateFormat)),
-            --permissions acdlpruw,
-            --services bfqt,
-            --resource-types sco,
-            --account-key $accountKey,
-            --account-name $PSItem.accountName,
+        az storage account generate-sas `
+            --start ($start.ToString($dateFormat)) `
+            --expiry ($expiry.ToString($dateFormat)) `
+            --permissions acdlpruw `
+            --services bfqt `
+            --resource-types sco `
+            --account-key $accountKey `
+            --account-name $PSItem.accountName `
             --https-only |
         ConvertFrom-Json
     ))

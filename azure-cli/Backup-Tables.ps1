@@ -47,10 +47,10 @@ function Save-Table(
     do
     {
         $result = ContinueOnSuccess {
-            az storage entity query,
-                --accept full,
-                --connection-string $connectionString,
-                --table-name $table,
+            az storage entity query `
+                --accept full `
+                --connection-string $connectionString `
+                --table-name $table `
                 --marker "nextpartitionkey='$nextPartitionKey'" "nextrowkey='$nextRowKey'"
             }
         $nextPartitionKey = $result.marker.nextPartitionKey
@@ -89,19 +89,19 @@ function Clear-Table(
         do
         {
             $result = ContinueOnSuccess {
-                az storage entity query,
-                    --connection-string $connectionString,
-                    --table-name $table,
-                    --query "items[].{ PartitionKey: PartitionKey, RowKey: RowKey }",
+                az storage entity query `
+                    --connection-string $connectionString `
+                    --table-name $table `
+                    --query "items[].{ PartitionKey: PartitionKey, RowKey: RowKey }" `
                     --select "PartitionKey" "RowKey"
                 }
             $result |
                 ForEach-Object {
                     ContinueOnSuccess {
-                        az storage entity delete,
-                            --connection-string $connectionString,
-                            --table-name $table,
-                            --partition-key $_.PartitionKey,
+                        az storage entity delete `
+                            --connection-string $connectionString `
+                            --table-name $table `
+                            --partition-key $_.PartitionKey `
                             --row-key $_.RowKey
                         } | Out-Null
                 }
