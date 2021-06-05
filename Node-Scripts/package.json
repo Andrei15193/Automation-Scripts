@@ -11,7 +11,7 @@
   "author": "Andrei Fangli",
   "license": "MIT",
   "dependencies": {
-    "azure-storage": "^2.10.2",
+    "azure-storage": "^2.10.4",
     "stream-json": "^1.2.1"
   }
 }
